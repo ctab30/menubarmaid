@@ -28,10 +28,9 @@ class SessionManager {
             }
         });
 
-        // Run claude after shell initializes
-        setTimeout(() => {
-            ptyProcess.write('claude\r');
-        }, 300);
+        // Track shell readiness for claude launch
+        let claudeLaunched = false;
+        let outputBuffer = '';
 
         const session = {
             id,
@@ -44,9 +43,21 @@ class SessionManager {
             lastActivity: Date.now()
         };
 
-        // Capture output
+        // Capture output and detect shell ready state
         ptyProcess.onData((data) => {
             session.lastActivity = Date.now();
+            outputBuffer += data;
+
+            // Detect shell ready state by looking for prompt patterns
+            // Common prompts: $ (bash/zsh), % (zsh), > (fish), # (root)
+            // Only launch claude once, after first prompt is detected
+            if (!claudeLaunched && /[$%>#]\s*$/.test(outputBuffer)) {
+                claudeLaunched = true;
+                // Small delay after prompt detection to ensure shell is fully ready
+                setTimeout(() => {
+                    ptyProcess.write('claude\r');
+                }, 50);
+            }
 
             // Add to buffer (split by newlines, keep last N lines)
             const lines = data.split('\n');
