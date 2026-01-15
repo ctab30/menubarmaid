@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-15)
 
 **Core value:** Make Claude Code sessions instantly accessible and GSD workflows one-click away.
-**Current focus:** Phase 2 — GSD Quick Commands
+**Current focus:** Phase 3 — Session Modes
 
 ## Current Position
 
-Phase: 2 of 5 (GSD Quick Commands) - COMPLETE
-Plan: 1 of 1 in phase (all complete)
-Status: Phase complete
-Last activity: 2026-01-15 — Completed 02-01-PLAN.md
+Phase: 3 of 5 (Session Modes)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-01-15 — Completed 03-01-PLAN.md
 
-Progress: ████░░░░░░ 40%
+Progress: █████░░░░░ 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 4 min
-- Total execution time: 0.18 hours
+- Total plans completed: 4
+- Average duration: 3.5 min
+- Total execution time: 0.22 hours
 
 **By Phase:**
 
@@ -29,9 +29,10 @@ Progress: ████░░░░░░ 40%
 |-------|-------|-------|----------|
 | 1 | 2/2 | 10 min | 5 min |
 | 2 | 1/1 | 1 min | 1 min |
+| 3 | 1/2 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: PLAN-A (8 min), PLAN-B (2 min), 02-01 (1 min)
+- Last 5 plans: PLAN-A (8 min), PLAN-B (2 min), 02-01 (1 min), 03-01 (2 min)
 - Trend: Accelerating
 
 ## Accumulated Context
@@ -50,6 +51,9 @@ Recent decisions affecting current work:
 - Dimension bounds 1-500 for terminal resize — PLAN-B
 - Use data-cmd attributes on buttons for command dispatch — 02-01
 - 500ms executing state for brief visual feedback — 02-01
+- Options object pattern for createSession extensibility — 03-01
+- Per-path mode preferences stored via electron-store — 03-01
+- Default dangerousMode to false for security — 03-01
 
 ### Deferred Issues
 
@@ -71,7 +75,7 @@ All Phase 1 concerns resolved:
 ## Session Continuity
 
 Last session: 2026-01-15
-Stopped at: Completed Phase 2, ready for Phase 3
+Stopped at: Completed 03-01-PLAN.md, ready for 03-02
 Resume file: None
 
 ## Phase 1 Plans
@@ -86,3 +90,10 @@ Resume file: None
 | Plan | Description | Status |
 |------|-------------|--------|
 | 02-01 | GSD Quick Commands (command bar with Progress, Status, Plan, Execute buttons) | Complete |
+
+## Phase 3 Plans
+
+| Plan | Description | Status |
+|------|-------------|--------|
+| 03-01 | Session Modes Backend (dangerousMode support, IPC handlers, per-path prefs) | Complete |
+| 03-02 | Session Modes UI (toggle, indicators, restart with flags) | Pending |
