@@ -9,7 +9,8 @@ class SessionManager {
         this.outputCallbacks = new Set();
     }
 
-    createSession(cwd = os.homedir()) {
+    createSession(cwd = os.homedir(), options = {}) {
+        const { dangerousMode = false } = options;
         const id = this.nextId++;
         const shell = process.env.SHELL || '/bin/zsh';
 
@@ -36,6 +37,7 @@ class SessionManager {
             id,
             pid: ptyProcess.pid,
             cwd,
+            dangerousMode,
             ptyProcess,
             outputBuffer: [],
             maxBufferLines: 1000,
@@ -55,7 +57,10 @@ class SessionManager {
                 claudeLaunched = true;
                 // Small delay after prompt detection to ensure shell is fully ready
                 setTimeout(() => {
-                    ptyProcess.write('claude\r');
+                    const claudeCmd = dangerousMode
+                        ? 'claude --dangerously-skip-permissions\r'
+                        : 'claude\r';
+                    ptyProcess.write(claudeCmd);
                 }, 50);
             }
 
