@@ -7,6 +7,7 @@ let sessions = [];
 let pins = [];
 let currentSessionId = null;
 let currentSessionPath = null;
+let currentSessionDangerousMode = false;
 let terminal = null;
 let fitAddon = null;
 
@@ -25,6 +26,8 @@ const btnBack = document.getElementById('btn-back');
 const btnKill = document.getElementById('btn-kill');
 const btnPin = document.getElementById('btn-pin');
 const emptyAddBtn = document.getElementById('empty-add-btn');
+const modeToggleInput = document.getElementById('mode-toggle-input');
+const modeLabel = document.getElementById('mode-label');
 
 // Initialize
 async function init() {
@@ -40,12 +43,48 @@ function setupEventListeners() {
     btnBack.addEventListener('click', showGridView);
     btnKill.addEventListener('click', killCurrentSession);
     btnPin.addEventListener('click', pinCurrentPath);
+    modeToggleInput.addEventListener('change', handleModeToggle);
     window.addEventListener('resize', handleResize);
 
     // GSD command buttons
     document.querySelectorAll('.gsd-cmd-btn').forEach(btn => {
         btn.addEventListener('click', () => executeGsdCommand(btn));
     });
+}
+
+// Handle mode toggle
+async function handleModeToggle() {
+    if (!currentSessionId || !currentSessionPath) return;
+
+    const newDangerousMode = modeToggleInput.checked;
+
+    // Save preference for this path
+    await window.api.modes.set(currentSessionPath, { dangerousMode: newDangerousMode });
+
+    // Update label
+    updateModeLabel(newDangerousMode);
+
+    // Kill current session and restart with new mode
+    await window.api.killSession(currentSessionId);
+
+    // Start new session with the mode preference
+    const result = await window.api.createSession(currentSessionPath, { dangerousMode: newDangerousMode });
+    const session = unwrap(result);
+    if (session) {
+        await refreshAll();
+        showTerminalView(session.id);
+    }
+}
+
+function updateModeLabel(dangerousMode) {
+    if (dangerousMode) {
+        modeLabel.textContent = 'Dangerous';
+        modeLabel.classList.add('dangerous');
+    } else {
+        modeLabel.textContent = 'Safe';
+        modeLabel.classList.remove('dangerous');
+    }
+    currentSessionDangerousMode = dangerousMode;
 }
 
 // Execute GSD command from button click
@@ -193,6 +232,9 @@ function createPinnedItem(pinPath) {
 function createSessionCard(session) {
     const card = document.createElement('div');
     card.className = 'card session-card';
+    if (session.dangerousMode) {
+        card.classList.add('dangerous-mode');
+    }
     card.dataset.sessionId = session.id;
 
     const preview = session.preview?.slice(-3).join('\n') || '';
@@ -244,7 +286,11 @@ async function createNewSession() {
 }
 
 async function startSessionAtPath(folder) {
-    const result = await window.api.createSession(folder);
+    // Load mode preference for this path
+    const modeResult = await window.api.modes.get(folder);
+    const modeData = unwrap(modeResult) || { dangerousMode: false };
+
+    const result = await window.api.createSession(folder, { dangerousMode: modeData.dangerousMode });
     const session = unwrap(result);
     if (!session) return;
     await refreshAll();
@@ -275,6 +321,13 @@ async function showTerminalView(sessionId) {
 
     currentSessionPath = session.cwd;
     await window.api.resizePopover('terminal');
+
+    // Load mode preference and update toggle
+    const modeResult = await window.api.modes.get(session.cwd);
+    const modeData = unwrap(modeResult) || { dangerousMode: false };
+    const isDangerousMode = session.dangerousMode || modeData.dangerousMode;
+    modeToggleInput.checked = isDangerousMode;
+    updateModeLabel(isDangerousMode);
 
     gridView.classList.remove('active');
     terminalView.classList.add('active');
