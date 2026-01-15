@@ -146,80 +146,144 @@ function createTray() {
 function setupIPC() {
     // Session management
     ipcMain.handle('sessions:create', async (event, cwd) => {
-        return sessionManager.createSession(cwd);
+        try {
+            return { success: true, data: sessionManager.createSession(cwd) };
+        } catch (error) {
+            console.error('sessions:create error:', error);
+            return { success: false, error: error.message };
+        }
     });
 
     ipcMain.handle('sessions:kill', async (event, id) => {
-        return sessionManager.killSession(id);
+        try {
+            return { success: true, data: sessionManager.killSession(id) };
+        } catch (error) {
+            console.error('sessions:kill error:', error);
+            return { success: false, error: error.message };
+        }
     });
 
     ipcMain.handle('sessions:list', async () => {
-        return sessionManager.getAllSessions();
+        try {
+            return { success: true, data: sessionManager.getAllSessions() };
+        } catch (error) {
+            console.error('sessions:list error:', error);
+            return { success: false, error: error.message };
+        }
     });
 
     ipcMain.handle('sessions:get', async (event, id) => {
-        return sessionManager.getSession(id);
+        try {
+            return { success: true, data: sessionManager.getSession(id) };
+        } catch (error) {
+            console.error('sessions:get error:', error);
+            return { success: false, error: error.message };
+        }
     });
 
     // Terminal I/O
     ipcMain.handle('sessions:write', async (event, id, data) => {
-        return sessionManager.write(id, data);
+        try {
+            return { success: true, data: sessionManager.write(id, data) };
+        } catch (error) {
+            console.error('sessions:write error:', error);
+            return { success: false, error: error.message };
+        }
     });
 
     ipcMain.handle('sessions:resize', async (event, id, cols, rows) => {
-        return sessionManager.resize(id, cols, rows);
+        try {
+            return { success: true, data: sessionManager.resize(id, cols, rows) };
+        } catch (error) {
+            console.error('sessions:resize error:', error);
+            return { success: false, error: error.message };
+        }
     });
 
     // Popover controls
     ipcMain.handle('popover:resize', async (event, mode) => {
-        if (mode === 'terminal') {
-            resizePopover(TERMINAL_WIDTH, TERMINAL_HEIGHT);
-        } else {
-            resizePopover(GRID_WIDTH, GRID_HEIGHT);
+        try {
+            if (mode === 'terminal') {
+                resizePopover(TERMINAL_WIDTH, TERMINAL_HEIGHT);
+            } else {
+                resizePopover(GRID_WIDTH, GRID_HEIGHT);
+            }
+            return { success: true };
+        } catch (error) {
+            console.error('popover:resize error:', error);
+            return { success: false, error: error.message };
         }
     });
 
     ipcMain.handle('popover:hide', async () => {
-        hidePopover();
+        try {
+            hidePopover();
+            return { success: true };
+        } catch (error) {
+            console.error('popover:hide error:', error);
+            return { success: false, error: error.message };
+        }
     });
 
     // Directory picker
     ipcMain.handle('dialog:selectDirectory', async () => {
-        // Temporarily disable alwaysOnTop so dialog appears properly
-        popover.setAlwaysOnTop(false);
+        try {
+            // Temporarily disable alwaysOnTop so dialog appears properly
+            popover.setAlwaysOnTop(false);
 
-        const result = await dialog.showOpenDialog(popover, {
-            properties: ['openDirectory'],
-            title: 'Select a folder for Claude session'
-        });
+            const result = await dialog.showOpenDialog(popover, {
+                properties: ['openDirectory'],
+                title: 'Select a folder for Claude session'
+            });
 
-        // Re-enable alwaysOnTop and refocus
-        popover.setAlwaysOnTop(true);
-        popover.focus();
+            // Re-enable alwaysOnTop and refocus
+            popover.setAlwaysOnTop(true);
+            popover.focus();
 
-        if (result.canceled) return null;
-        return result.filePaths[0];
+            if (result.canceled) return { success: true, data: null };
+            return { success: true, data: result.filePaths[0] };
+        } catch (error) {
+            console.error('dialog:selectDirectory error:', error);
+            // Ensure alwaysOnTop is re-enabled even on error
+            popover?.setAlwaysOnTop(true);
+            return { success: false, error: error.message };
+        }
     });
 
     // Pinned paths
     ipcMain.handle('pins:get', async () => {
-        return store.get('pinnedPaths', []);
+        try {
+            return { success: true, data: store.get('pinnedPaths', []) };
+        } catch (error) {
+            console.error('pins:get error:', error);
+            return { success: false, error: error.message };
+        }
     });
 
     ipcMain.handle('pins:add', async (event, pathToPin) => {
-        const pins = store.get('pinnedPaths', []);
-        if (!pins.includes(pathToPin)) {
-            pins.unshift(pathToPin); // Add to beginning
-            store.set('pinnedPaths', pins.slice(0, 10)); // Max 10 pins
+        try {
+            const pins = store.get('pinnedPaths', []);
+            if (!pins.includes(pathToPin)) {
+                pins.unshift(pathToPin); // Add to beginning
+                store.set('pinnedPaths', pins.slice(0, 10)); // Max 10 pins
+            }
+            return { success: true, data: store.get('pinnedPaths', []) };
+        } catch (error) {
+            console.error('pins:add error:', error);
+            return { success: false, error: error.message };
         }
-        return store.get('pinnedPaths', []);
     });
 
     ipcMain.handle('pins:remove', async (event, pathToRemove) => {
-        const pins = store.get('pinnedPaths', []);
-        const filtered = pins.filter(p => p !== pathToRemove);
-        store.set('pinnedPaths', filtered);
-        return filtered;
+        try {
+            const pins = store.get('pinnedPaths', []);
+            const filtered = pins.filter(p => p !== pathToRemove);
+            store.set('pinnedPaths', filtered);
+            return { success: true, data: filtered };
+        } catch (error) {
+            console.error('pins:remove error:', error);
+            return { success: false, error: error.message };
+        }
     });
 
     // Forward session output to renderer
