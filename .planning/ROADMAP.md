@@ -39,7 +39,7 @@ Key work:
 **Goal**: Add UI for launching GSD commands directly from terminal view
 **Depends on**: Phase 1
 **Research**: Unlikely (internal UI work)
-**Plans**: TBD
+**Plans**: 1 (02-01)
 
 Key work:
 - Command button bar in terminal header
@@ -93,7 +93,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Security Foundation | 2/2 | Complete | 2026-01-15 |
-| 2. GSD Quick Commands | 0/TBD | Not started | - |
+| 2. GSD Quick Commands | 0/1 | Planned | - |
 | 3. Session Modes | 0/TBD | Not started | - |
 | 4. iOS Liquid Glass UI | 0/TBD | Not started | - |
 | 5. Developer Features | 0/TBD | Not started | - |
