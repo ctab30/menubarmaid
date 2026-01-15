@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-15)
 
 **Core value:** Make Claude Code sessions instantly accessible and GSD workflows one-click away.
-**Current focus:** Phase 3 — Session Modes
+**Current focus:** Phase 4 — iOS Liquid Glass UI
 
 ## Current Position
 
-Phase: 3 of 5 (Session Modes)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-01-15 — Completed 03-02-PLAN.md
+Phase: 4 of 5 (iOS Liquid Glass UI)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-01-15 — Completed 04-01-PLAN.md
 
-Progress: ██████░░░░ 60%
+Progress: ███████░░░ 70%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 3.2 min
-- Total execution time: 0.27 hours
+- Total plans completed: 6
+- Average duration: 3.0 min
+- Total execution time: 0.30 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: ██████░░░░ 60%
 | 1 | 2/2 | 10 min | 5 min |
 | 2 | 1/1 | 1 min | 1 min |
 | 3 | 2/2 | 4 min | 2 min |
+| 4 | 1/2 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: PLAN-B (2 min), 02-01 (1 min), 03-01 (2 min), 03-02 (2 min)
-- Trend: Accelerating
+- Last 5 plans: 02-01 (1 min), 03-01 (2 min), 03-02 (2 min), 04-01 (2 min)
+- Trend: Steady
 
 ## Accumulated Context
 
@@ -57,6 +58,9 @@ Recent decisions affecting current work:
 - Toggle placed between terminal-info and pin button for easy access — 03-02
 - Orange color for dangerous mode to indicate caution — 03-02
 - Session restarts on mode toggle to apply flag — 03-02
+- CSS custom properties for glass tokens (easy theming) — 04-01
+- Always include webkit backdrop-filter for Safari — 04-01
+- Three glass variants: heavy (container), normal (cards), light (hover) — 04-01
 
 ### Deferred Issues
 
@@ -78,7 +82,7 @@ All Phase 1 concerns resolved:
 ## Session Continuity
 
 Last session: 2026-01-15
-Stopped at: Completed 03-02-PLAN.md, Phase 3 complete
+Stopped at: Completed 04-01-PLAN.md, ready for 04-02
 Resume file: None
 
 ## Phase 1 Plans
@@ -100,3 +104,10 @@ Resume file: None
 |------|-------------|--------|
 | 03-01 | Session Modes Backend (dangerousMode support, IPC handlers, per-path prefs) | Complete |
 | 03-02 | Session Modes UI (toggle, indicators, restart with flags) | Complete |
+
+## Phase 4 Plans
+
+| Plan | Description | Status |
+|------|-------------|--------|
+| 04-01 | Glass Foundation & Cards (design tokens, container/card glass effects) | Complete |
+| 04-02 | Headers, Polish & Verify (bars, depth system, performance, visual check) | Planned |

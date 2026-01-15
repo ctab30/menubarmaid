@@ -64,7 +64,7 @@ Key work:
 **Depends on**: Phase 3
 **Research**: Likely (CSS backdrop-filter patterns, macOS vibrancy)
 **Research topics**: CSS backdrop-filter performance, Electron vibrancy API, iOS glassmorphism patterns
-**Plans**: TBD
+**Plans**: 2 (04-01, 04-02)
 
 Key work:
 - Frosted glass effect on popover background
@@ -95,5 +95,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Security Foundation | 2/2 | Complete | 2026-01-15 |
 | 2. GSD Quick Commands | 1/1 | Complete | 2026-01-15 |
 | 3. Session Modes | 2/2 | Complete | 2026-01-15 |
-| 4. iOS Liquid Glass UI | 0/TBD | Not started | - |
+| 4. iOS Liquid Glass UI | 1/2 | In progress | - |
 | 5. Developer Features | 0/TBD | Not started | - |
