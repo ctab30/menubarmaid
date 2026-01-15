@@ -51,7 +51,7 @@ Key work:
 **Goal**: Add dangerous mode toggle and session-level preferences
 **Depends on**: Phase 2
 **Research**: Unlikely (internal feature)
-**Plans**: TBD
+**Plans**: 2 (03-01, 03-02)
 
 Key work:
 - Toggle switch for `--dangerously-skip-permissions` mode
@@ -94,6 +94,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Security Foundation | 2/2 | Complete | 2026-01-15 |
 | 2. GSD Quick Commands | 1/1 | Complete | 2026-01-15 |
-| 3. Session Modes | 0/TBD | Not started | - |
+| 3. Session Modes | 0/2 | Planned | - |
 | 4. iOS Liquid Glass UI | 0/TBD | Not started | - |
 | 5. Developer Features | 0/TBD | Not started | - |
