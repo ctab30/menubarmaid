@@ -156,6 +156,7 @@ class SessionManager {
             id: session.id,
             cwd: session.cwd,
             pid: session.pid,
+            dangerousMode: session.dangerousMode,
             createdAt: session.createdAt,
             lastActivity: session.lastActivity,
             recentOutput: session.outputBuffer.slice(-50).join('\n')
@@ -167,6 +168,7 @@ class SessionManager {
             id: session.id,
             cwd: session.cwd,
             pid: session.pid,
+            dangerousMode: session.dangerousMode,
             createdAt: session.createdAt,
             lastActivity: session.lastActivity,
             preview: this.getPreviewLines(session, 4)
