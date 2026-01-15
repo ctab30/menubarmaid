@@ -1,6 +1,24 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, screen, nativeImage } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const Store = require('electron-store');
+
+// Path validation helper to prevent path traversal attacks
+function isValidPath(inputPath) {
+    if (!inputPath || typeof inputPath !== 'string') return false;
+
+    // Normalize and check for path traversal
+    const normalized = path.normalize(inputPath);
+    if (normalized.includes('..')) return false;
+
+    // Check path exists and is a directory
+    try {
+        const stats = fs.statSync(normalized);
+        return stats.isDirectory();
+    } catch {
+        return false;
+    }
+}
 const SessionManager = require('./src/sessions');
 
 // Initialize
@@ -262,6 +280,11 @@ function setupIPC() {
 
     ipcMain.handle('pins:add', async (event, pathToPin) => {
         try {
+            // Validate path before adding to pins
+            if (!isValidPath(pathToPin)) {
+                return { success: false, error: 'Invalid path' };
+            }
+
             const pins = store.get('pinnedPaths', []);
             if (!pins.includes(pathToPin)) {
                 pins.unshift(pathToPin); // Add to beginning
