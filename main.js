@@ -163,9 +163,9 @@ function createTray() {
 // IPC Handlers
 function setupIPC() {
     // Session management
-    ipcMain.handle('sessions:create', async (event, cwd) => {
+    ipcMain.handle('sessions:create', async (event, cwd, options = {}) => {
         try {
-            return { success: true, data: sessionManager.createSession(cwd) };
+            return { success: true, data: sessionManager.createSession(cwd, options) };
         } catch (error) {
             console.error('sessions:create error:', error);
             return { success: false, error: error.message };
@@ -305,6 +305,29 @@ function setupIPC() {
             return { success: true, data: filtered };
         } catch (error) {
             console.error('pins:remove error:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
+    // Mode preferences (stored per path)
+    ipcMain.handle('modes:get', async (event, pathKey) => {
+        try {
+            const modes = store.get('pathModes', {});
+            return { success: true, data: modes[pathKey] || { dangerousMode: false } };
+        } catch (error) {
+            console.error('modes:get error:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('modes:set', async (event, pathKey, mode) => {
+        try {
+            const modes = store.get('pathModes', {});
+            modes[pathKey] = mode;
+            store.set('pathModes', modes);
+            return { success: true, data: mode };
+        } catch (error) {
+            console.error('modes:set error:', error);
             return { success: false, error: error.message };
         }
     });
