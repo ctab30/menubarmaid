@@ -41,6 +41,35 @@ function setupEventListeners() {
     btnKill.addEventListener('click', killCurrentSession);
     btnPin.addEventListener('click', pinCurrentPath);
     window.addEventListener('resize', handleResize);
+
+    // GSD command buttons
+    document.querySelectorAll('.gsd-cmd-btn').forEach(btn => {
+        btn.addEventListener('click', () => executeGsdCommand(btn));
+    });
+}
+
+// Execute GSD command from button click
+async function executeGsdCommand(button) {
+    if (!currentSessionId) return;
+
+    const cmd = button.dataset.cmd;
+    if (!cmd) return;
+
+    // Visual feedback - add executing state
+    button.classList.add('executing');
+
+    // Send command to terminal (with carriage return to execute)
+    await window.api.write(currentSessionId, cmd + '\r');
+
+    // Ensure terminal has focus so user can see output
+    if (terminal) {
+        terminal.focus();
+    }
+
+    // Remove executing state after brief delay
+    setTimeout(() => {
+        button.classList.remove('executing');
+    }, 500);
 }
 
 function setupOutputListener() {
