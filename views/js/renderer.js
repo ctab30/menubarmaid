@@ -299,8 +299,12 @@ async function showTerminalView(sessionId) {
         }
 
         const dims = fitAddon.proposeDimensions();
-        if (dims) {
+        // Validate dimensions before sending to backend
+        if (dims && typeof dims.cols === 'number' && typeof dims.rows === 'number'
+            && dims.cols > 0 && dims.rows > 0) {
             window.api.resize(sessionId, dims.cols, dims.rows);
+        } else {
+            console.warn('Invalid terminal dimensions from fitAddon:', dims);
         }
 
         terminal.focus();
@@ -343,8 +347,12 @@ function handleResize() {
     if (terminal && fitAddon && currentSessionId) {
         fitAddon.fit();
         const dims = fitAddon.proposeDimensions();
-        if (dims) {
+        // Validate dimensions before sending to backend
+        if (dims && typeof dims.cols === 'number' && typeof dims.rows === 'number'
+            && dims.cols > 0 && dims.rows > 0) {
             window.api.resize(currentSessionId, dims.cols, dims.rows);
+        } else {
+            console.warn('Invalid terminal dimensions from fitAddon:', dims);
         }
     }
 }
