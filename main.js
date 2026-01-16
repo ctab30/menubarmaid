@@ -35,8 +35,8 @@ const iconPath = path.join(__dirname, 'assets', 'IconTerminalTemplate.png');
 // Popover dimensions
 const GRID_WIDTH = 380;
 const GRID_HEIGHT = 420;
-const TERMINAL_WIDTH = 580;
-const TERMINAL_HEIGHT = 480;
+const TERMINAL_WIDTH = 750;
+const TERMINAL_HEIGHT = 550;
 
 function createPopover() {
     popover = new BrowserWindow({
@@ -62,11 +62,10 @@ function createPopover() {
 
     popover.loadFile('views/index.html');
 
-    // Don't auto-hide on blur - let user click tray icon to toggle
-    // This prevents hiding when clicking inside terminal
-    // popover.on('blur', () => {
-    //     hidePopover();
-    // });
+    // Hide popover when clicking outside (loses focus)
+    popover.on('blur', () => {
+        hidePopover();
+    });
 
     // Prevent closing, just hide
     popover.on('close', (e) => {
@@ -104,9 +103,7 @@ function showPopover() {
 function hidePopover() {
     if (popover && popover.isVisible()) {
         popover.hide();
-        // Reset to grid size when hiding
-        popover.setSize(GRID_WIDTH, GRID_HEIGHT, true);
-        popover.webContents.send('view:reset');
+        // Preserve current view state - don't reset to grid
     }
 }
 
@@ -268,6 +265,11 @@ function setupIPC() {
         }
     });
 
+    // Environment
+    ipcMain.handle('env:homeDir', () => {
+        return require('os').homedir();
+    });
+
     // Pinned paths
     ipcMain.handle('pins:get', async () => {
         try {
@@ -328,6 +330,55 @@ function setupIPC() {
             return { success: true, data: mode };
         } catch (error) {
             console.error('modes:set error:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
+    // Open in IDE - auto-detect installed IDEs
+    ipcMain.handle('ide:open', async (event, projectPath) => {
+        const { exec } = require('child_process');
+        const util = require('util');
+        const execAsync = util.promisify(exec);
+
+        // IDE options in order of preference (CLI first, then app fallback)
+        const ides = [
+            { name: 'Cursor', cmd: 'cursor' },
+            { name: 'Cursor', app: 'Cursor' },
+            { name: 'VS Code', cmd: 'code' },
+            { name: 'VS Code', app: 'Visual Studio Code' },
+            { name: 'VS Code Insiders', cmd: 'code-insiders' },
+            { name: 'Sublime Text', app: 'Sublime Text' },
+            { name: 'WebStorm', app: 'WebStorm' },
+            { name: 'PyCharm', app: 'PyCharm' },
+            { name: 'IntelliJ IDEA', app: 'IntelliJ IDEA' },
+            { name: 'Xcode', app: 'Xcode' },
+        ];
+
+        try {
+            for (const ide of ides) {
+                try {
+                    if (ide.cmd) {
+                        // Check if CLI command exists
+                        await execAsync(`which ${ide.cmd}`);
+                        // Open with CLI
+                        exec(`${ide.cmd} "${projectPath}"`);
+                        return { success: true, data: { ide: ide.name } };
+                    } else if (ide.app) {
+                        // Check if app exists and open with 'open -a'
+                        const appPath = `/Applications/${ide.app}.app`;
+                        if (fs.existsSync(appPath)) {
+                            exec(`open -a "${ide.app}" "${projectPath}"`);
+                            return { success: true, data: { ide: ide.name } };
+                        }
+                    }
+                } catch {
+                    // IDE not found, try next
+                    continue;
+                }
+            }
+            return { success: false, error: 'No supported IDE found' };
+        } catch (error) {
+            console.error('ide:open error:', error);
             return { success: false, error: error.message };
         }
     });

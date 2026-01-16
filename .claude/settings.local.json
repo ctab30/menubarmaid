@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "strapi"
+  ],
+  "enableAllProjectMcpServers": true
+}

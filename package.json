@@ -1,50 +1,46 @@
 {
-  "name": "menubarmaid",
-  "productName": "Menu Barmaid",
-  "version": "1.1.0",
-  "description": "open stuff right from the menu bar",
+  "name": "claude-code-menubar",
+  "productName": "Claude Code Menu Bar",
+  "version": "1.0.0",
+  "description": "Launch and manage Claude Code terminal sessions from your menu bar",
   "main": "main.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sebfried/menubarmaid.git"
+    "url": "https://github.com/your-username/claude-code-menubar.git"
   },
-  "bugs": {
-    "url": "https://github.com/sebfried/menubarmaid/issues"
-  },
-  "author": "Sebastian W. Friedrich",
-  "license": "EUPL-1.2",
+  "author": "",
+  "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "rebuild": "electron-rebuild -f -w node-pty"
   },
   "dependencies": {
     "electron-store": "^8.1.0",
-    "menubar": "^9.4.0"
+    "node-pty": "^1.0.0",
+    "xterm": "^5.3.0",
+    "xterm-addon-fit": "^0.8.0"
   },
   "devDependencies": {
     "electron": "^27.0.0",
-    "electron-builder": "^24.9.1"
+    "electron-builder": "^24.9.1",
+    "electron-rebuild": "^3.2.9"
   },
   "build": {
     "mac": {
-      "category": "public.app-category.utilities",
+      "category": "public.app-category.developer-tools",
       "target": [
         "dmg"
       ]
     }
   },
   "keywords": [
+    "claude",
+    "claude-code",
+    "terminal",
     "menu bar",
     "macOS",
-    "utilities",
-    "productivity",
-    "launcher",
-    "shortcut",
-    "task automation",
-    "electron",
-    "desktop app"
-  ],
-  "engines": {
-    "node": "^18.19.0"
-  }
+    "developer-tools",
+    "electron"
+  ]
 }

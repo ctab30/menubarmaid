@@ -8,8 +8,10 @@ let pins = [];
 let currentSessionId = null;
 let currentSessionPath = null;
 let currentSessionDangerousMode = false;
-let terminal = null;
-let fitAddon = null;
+let homeDir = ''; // Cached from main process
+
+// Terminal instances cache - keeps terminals alive per session
+const terminalCache = new Map(); // sessionId -> { terminal, fitAddon, element }
 
 // DOM Elements
 const gridView = document.getElementById('grid-view');
@@ -25,16 +27,26 @@ const terminalPath = document.getElementById('terminal-path');
 const btnBack = document.getElementById('btn-back');
 const btnKill = document.getElementById('btn-kill');
 const btnPin = document.getElementById('btn-pin');
+const btnIDE = document.getElementById('btn-ide');
+const btnSummarize = document.getElementById('btn-summarize');
 const emptyAddBtn = document.getElementById('empty-add-btn');
 const modeToggleInput = document.getElementById('mode-toggle-input');
 const modeLabel = document.getElementById('mode-label');
 
+// Summarize state
+let summarizeState = 'idle'; // 'idle' | 'waiting' | 'ready'
+
 // Initialize
 async function init() {
+    console.log('init() starting');
+    // Fetch homeDir from main process
+    homeDir = await window.api.getHomeDir() || '';
     await refreshAll();
     setupEventListeners();
+    console.log('Event listeners set up');
     setupOutputListener();
     setupViewReset();
+    console.log('init() complete');
 }
 
 function setupEventListeners() {
@@ -43,13 +55,111 @@ function setupEventListeners() {
     btnBack.addEventListener('click', showGridView);
     btnKill.addEventListener('click', killCurrentSession);
     btnPin.addEventListener('click', pinCurrentPath);
+    btnIDE.addEventListener('click', openInIDE);
+    btnSummarize.addEventListener('click', handleSummarize);
     modeToggleInput.addEventListener('change', handleModeToggle);
     window.addEventListener('resize', handleResize);
+}
 
-    // GSD command buttons
-    document.querySelectorAll('.gsd-cmd-btn').forEach(btn => {
-        btn.addEventListener('click', () => executeGsdCommand(btn));
-    });
+// Open current project in IDE
+async function openInIDE() {
+    if (!currentSessionPath) return;
+
+    const result = await window.api.openInIDE(currentSessionPath);
+    const data = unwrap(result);
+
+    if (data) {
+        // Visual feedback
+        btnIDE.classList.add('ide-success');
+        setTimeout(() => {
+            btnIDE.classList.remove('ide-success');
+        }, 600);
+    } else {
+        // Show error - no IDE found
+        btnIDE.classList.add('ide-error');
+        setTimeout(() => {
+            btnIDE.classList.remove('ide-error');
+        }, 1000);
+    }
+}
+
+// Handle summarize & restart
+async function handleSummarize() {
+    if (!currentSessionId || !currentSessionPath) return;
+
+    if (summarizeState === 'idle') {
+        // Step 1: Send summarize prompt
+        summarizeState = 'waiting';
+        btnSummarize.classList.add('summarize-waiting');
+        btnSummarize.title = 'Click again when summary is ready to start fresh session';
+
+        const summarizePrompt = '/compact\r';
+        await window.api.write(currentSessionId, summarizePrompt);
+
+        // After brief delay, mark as ready
+        setTimeout(() => {
+            summarizeState = 'ready';
+            btnSummarize.classList.remove('summarize-waiting');
+            btnSummarize.classList.add('summarize-ready');
+        }, 2000);
+
+    } else if (summarizeState === 'ready' || summarizeState === 'waiting') {
+        // Step 2: Get current session data, kill it, start fresh with summary
+        const sessionResult = await window.api.getSession(currentSessionId);
+        const session = unwrap(sessionResult);
+        if (!session) return;
+
+        const savedPath = currentSessionPath;
+        const savedDangerousMode = currentSessionDangerousMode;
+        const summaryContext = session.recentOutput;
+
+        // Dispose and remove old terminal from cache
+        const cached = terminalCache.get(currentSessionId);
+        if (cached) {
+            cached.terminal.dispose();
+            terminalCache.delete(currentSessionId);
+        }
+
+        // Kill current session
+        await window.api.killSession(currentSessionId);
+
+        // Start new session
+        const newResult = await window.api.createSession(savedPath, { dangerousMode: savedDangerousMode });
+        const newSession = unwrap(newResult);
+        if (!newSession) return;
+
+        // Reset state
+        summarizeState = 'idle';
+        btnSummarize.classList.remove('summarize-waiting', 'summarize-ready');
+        btnSummarize.title = 'Summarize & start fresh session';
+
+        await refreshAll();
+        showTerminalView(newSession.id);
+
+        // Wait for Claude to start, then paste summary context
+        setTimeout(async () => {
+            // Send the summary as context for the new session
+            const contextPrompt = `Here is a summary of my previous session for context:\n\n---\n${extractSummaryFromOutput(summaryContext)}\n---\n\nPlease continue helping me with this project.\r`;
+            await window.api.write(newSession.id, contextPrompt);
+        }, 3000);
+    }
+}
+
+// Extract meaningful summary from raw output
+function extractSummaryFromOutput(rawOutput) {
+    // Try to get the last meaningful chunk (after /compact was sent)
+    // This is a simple heuristic - get last ~2000 chars
+    const cleaned = rawOutput
+        .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '') // Remove ANSI codes
+        .replace(/\x1b\][^\x07]*\x07/g, '')     // Remove OSC codes
+        .trim();
+
+    // Get last portion as summary
+    const maxLen = 3000;
+    if (cleaned.length > maxLen) {
+        return cleaned.slice(-maxLen);
+    }
+    return cleaned;
 }
 
 // Handle mode toggle
@@ -63,6 +173,13 @@ async function handleModeToggle() {
 
     // Update label
     updateModeLabel(newDangerousMode);
+
+    // Dispose and remove old terminal from cache
+    const cached = terminalCache.get(currentSessionId);
+    if (cached) {
+        cached.terminal.dispose();
+        terminalCache.delete(currentSessionId);
+    }
 
     // Kill current session and restart with new mode
     await window.api.killSession(currentSessionId);
@@ -87,43 +204,24 @@ function updateModeLabel(dangerousMode) {
     currentSessionDangerousMode = dangerousMode;
 }
 
-// Execute GSD command from button click
-async function executeGsdCommand(button) {
-    if (!currentSessionId) return;
-
-    const cmd = button.dataset.cmd;
-    if (!cmd) return;
-
-    // Visual feedback - add executing state
-    button.classList.add('executing');
-
-    // Send command to terminal (with carriage return to execute)
-    await window.api.write(currentSessionId, cmd + '\r');
-
-    // Ensure terminal has focus so user can see output
-    if (terminal) {
-        terminal.focus();
-    }
-
-    // Remove executing state after brief delay
-    setTimeout(() => {
-        button.classList.remove('executing');
-    }, 500);
-}
-
 function setupOutputListener() {
     window.api.onOutput((sessionId, data, meta) => {
-        if (meta?.exited) {
-            refreshAll();
-        }
-
-        if (currentSessionId === sessionId && terminal) {
+        // Write to cached terminal (even if not currently viewing it)
+        const cached = terminalCache.get(sessionId);
+        if (cached) {
             if (data) {
-                terminal.write(data);
+                cached.terminal.write(data);
             }
             if (meta?.exited) {
-                terminal.write('\r\n\x1b[38;5;245m[Session ended]\x1b[0m\r\n');
+                cached.terminal.write('\r\n\x1b[38;5;245m[Session ended]\x1b[0m\r\n');
+                // Clean up cache for exited sessions
+                cached.terminal.dispose();
+                terminalCache.delete(sessionId);
             }
+        }
+
+        if (meta?.exited) {
+            refreshAll();
         }
     });
 }
@@ -270,15 +368,16 @@ function escapeHtml(text) {
 }
 
 function shortenPath(fullPath) {
-    const home = window.api.homeDir || '';
-    if (fullPath.startsWith(home)) {
-        return '~' + fullPath.slice(home.length);
+    if (homeDir && fullPath.startsWith(homeDir)) {
+        return '~' + fullPath.slice(homeDir.length);
     }
     return fullPath;
 }
 
 async function createNewSession() {
+    console.log('createNewSession called');
     const result = await window.api.selectDirectory();
+    console.log('selectDirectory result:', result);
     const folder = unwrap(result);
     if (!folder) return;
 
@@ -310,8 +409,6 @@ async function pinCurrentPath() {
 }
 
 async function showTerminalView(sessionId) {
-    currentSessionId = sessionId;
-
     const result = await window.api.getSession(sessionId);
     const session = unwrap(result);
     if (!session) {
@@ -319,8 +416,8 @@ async function showTerminalView(sessionId) {
         return;
     }
 
+    currentSessionId = sessionId;
     currentSessionPath = session.cwd;
-    await window.api.resizePopover('terminal');
 
     // Load mode preference and update toggle
     const modeResult = await window.api.modes.get(session.cwd);
@@ -329,72 +426,98 @@ async function showTerminalView(sessionId) {
     modeToggleInput.checked = isDangerousMode;
     updateModeLabel(isDangerousMode);
 
-    gridView.classList.remove('active');
-    terminalView.classList.add('active');
-
     const folderName = session.cwd.split('/').pop() || 'Session';
     terminalTitle.textContent = folderName;
     terminalPath.textContent = shortenPath(session.cwd);
 
-    terminalContainer.innerHTML = '';
+    // Check if we have a cached terminal for this session
+    let cached = terminalCache.get(sessionId);
 
-    terminal = new Terminal({
-        cursorBlink: true,
-        fontSize: 13,
-        fontFamily: '"SF Mono", "Monaco", "Menlo", monospace',
-        lineHeight: 1.2,
-        theme: {
-            background: '#161618',
-            foreground: '#ffffff',
-            cursor: '#0a84ff',
-            cursorAccent: '#161618',
-            selectionBackground: 'rgba(10, 132, 255, 0.3)',
-            black: '#1c1c1e',
-            red: '#ff453a',
-            green: '#30d158',
-            yellow: '#ffd60a',
-            blue: '#0a84ff',
-            magenta: '#bf5af2',
-            cyan: '#64d2ff',
-            white: '#ffffff',
-            brightBlack: '#636366',
-            brightRed: '#ff453a',
-            brightGreen: '#30d158',
-            brightYellow: '#ffd60a',
-            brightBlue: '#0a84ff',
-            brightMagenta: '#bf5af2',
-            brightCyan: '#64d2ff',
-            brightWhite: '#ffffff'
-        },
-        allowProposedApi: true
-    });
+    if (cached) {
+        // Reuse existing terminal - just reattach it
+        terminalContainer.innerHTML = '';
+        terminalContainer.appendChild(cached.element);
 
-    fitAddon = new FitAddon();
-    terminal.loadAddon(fitAddon);
-    terminal.open(terminalContainer);
+        // Switch views
+        gridView.classList.remove('active');
+        terminalView.classList.add('active');
+        await window.api.resizePopover('terminal');
 
-    setTimeout(() => {
-        fitAddon.fit();
+        // Refit and focus
+        setTimeout(() => {
+            cached.fitAddon.fit();
+            cached.terminal.focus();
+        }, 50);
+    } else {
+        // Create new terminal for this session
+        const terminal = new Terminal({
+            cursorBlink: true,
+            fontSize: 13,
+            fontFamily: '"SF Mono", "Monaco", "Menlo", monospace',
+            lineHeight: 1.2,
+            theme: {
+                background: '#161618',
+                foreground: '#ffffff',
+                cursor: '#0a84ff',
+                cursorAccent: '#161618',
+                selectionBackground: 'rgba(10, 132, 255, 0.3)',
+                black: '#1c1c1e',
+                red: '#ff453a',
+                green: '#30d158',
+                yellow: '#ffd60a',
+                blue: '#0a84ff',
+                magenta: '#bf5af2',
+                cyan: '#64d2ff',
+                white: '#ffffff',
+                brightBlack: '#636366',
+                brightRed: '#ff453a',
+                brightGreen: '#30d158',
+                brightYellow: '#ffd60a',
+                brightBlue: '#0a84ff',
+                brightMagenta: '#bf5af2',
+                brightCyan: '#64d2ff',
+                brightWhite: '#ffffff'
+            },
+            allowProposedApi: true
+        });
 
-        if (session.recentOutput) {
-            terminal.write(session.recentOutput);
-        }
+        const fitAddon = new FitAddon();
+        terminal.loadAddon(fitAddon);
 
-        const dims = fitAddon.proposeDimensions();
-        // Validate dimensions before sending to backend
-        if (dims && typeof dims.cols === 'number' && typeof dims.rows === 'number'
-            && dims.cols > 0 && dims.rows > 0) {
-            window.api.resize(sessionId, dims.cols, dims.rows);
-        } else {
-            console.warn('Invalid terminal dimensions from fitAddon:', dims);
-        }
+        // Create element to hold terminal
+        const element = document.createElement('div');
+        element.style.height = '100%';
+        element.style.width = '100%';
 
-        terminal.focus();
-    }, 150);
+        terminalContainer.innerHTML = '';
+        terminalContainer.appendChild(element);
 
-    terminal.onData((data) => {
-        window.api.write(sessionId, data);
-    });
+        // Switch views
+        gridView.classList.remove('active');
+        terminalView.classList.add('active');
+        await window.api.resizePopover('terminal');
+
+        // Open terminal
+        terminal.open(element);
+
+        // Cache it
+        terminalCache.set(sessionId, { terminal, fitAddon, element });
+
+        // Setup after DOM is ready
+        setTimeout(() => {
+            fitAddon.fit();
+            const dims = fitAddon.proposeDimensions();
+            if (dims && dims.cols > 0 && dims.rows > 0) {
+                window.api.resize(sessionId, dims.cols, dims.rows);
+            }
+            terminal.focus();
+        }, 100);
+
+        // Wire up input
+        terminal.onData((data) => {
+            window.api.write(sessionId, data);
+        });
+    }
 }
 
 function showGridView() {
@@ -406,11 +529,7 @@ function resetToGrid() {
     gridView.classList.add('active');
     terminalView.classList.remove('active');
 
-    if (terminal) {
-        terminal.dispose();
-        terminal = null;
-        fitAddon = null;
-    }
+    // Don't dispose terminal - keep it cached
     currentSessionId = null;
     currentSessionPath = null;
 
@@ -419,6 +538,13 @@ function resetToGrid() {
 
 async function killCurrentSession() {
     if (currentSessionId) {
+        // Dispose and remove from cache
+        const cached = terminalCache.get(currentSessionId);
+        if (cached) {
+            cached.terminal.dispose();
+            terminalCache.delete(currentSessionId);
+        }
+
         const result = await window.api.killSession(currentSessionId);
         unwrap(result);
         showGridView();
@@ -426,10 +552,11 @@ async function killCurrentSession() {
 }
 
 function handleResize() {
-    if (terminal && fitAddon && currentSessionId) {
-        fitAddon.fit();
-        const dims = fitAddon.proposeDimensions();
-        // Validate dimensions before sending to backend
+    if (!currentSessionId) return;
+    const cached = terminalCache.get(currentSessionId);
+    if (cached) {
+        cached.fitAddon.fit();
+        const dims = cached.fitAddon.proposeDimensions();
         if (dims && typeof dims.cols === 'number' && typeof dims.rows === 'number'
             && dims.cols > 0 && dims.rows > 0) {
             window.api.resize(currentSessionId, dims.cols, dims.rows);

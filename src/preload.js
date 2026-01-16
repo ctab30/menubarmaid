@@ -1,9 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const os = require('os');
 
 contextBridge.exposeInMainWorld('api', {
-    // Environment
-    homeDir: os.homedir(),
+    // Environment - fetch from main process
+    getHomeDir: () => ipcRenderer.invoke('env:homeDir'),
 
     // Session management
     createSession: (cwd, options) => ipcRenderer.invoke('sessions:create', cwd, options),
@@ -48,4 +47,7 @@ contextBridge.exposeInMainWorld('api', {
         get: (pathKey) => ipcRenderer.invoke('modes:get', pathKey),
         set: (pathKey, mode) => ipcRenderer.invoke('modes:set', pathKey, mode),
     },
+
+    // IDE integration
+    openInIDE: (projectPath) => ipcRenderer.invoke('ide:open', projectPath),
 });

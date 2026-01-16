@@ -39,8 +39,10 @@ class SessionManager {
             cwd,
             dangerousMode,
             ptyProcess,
-            outputBuffer: [],
+            outputBuffer: [],      // Line-based buffer for preview cards
+            rawBuffer: '',         // Raw output for terminal restoration
             maxBufferLines: 1000,
+            maxRawBuffer: 100000,  // ~100KB of raw output
             createdAt: Date.now(),
             lastActivity: Date.now()
         };
@@ -51,9 +53,11 @@ class SessionManager {
             outputBuffer += data;
 
             // Detect shell ready state by looking for prompt patterns
-            // Common prompts: $ (bash/zsh), % (zsh), > (fish), # (root)
+            // Strip ANSI escape codes first for reliable detection
+            const cleanBuffer = outputBuffer.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '');
+            // Common prompts: $ (bash/zsh), % (zsh), > (fish), # (root), or ❯ (starship/powerlevel)
             // Only launch claude once, after first prompt is detected
-            if (!claudeLaunched && /[$%>#]\s*$/.test(outputBuffer)) {
+            if (!claudeLaunched && /[$%>#❯→]\s*$/.test(cleanBuffer)) {
                 claudeLaunched = true;
                 // Small delay after prompt detection to ensure shell is fully ready
                 setTimeout(() => {
@@ -61,10 +65,16 @@ class SessionManager {
                         ? 'claude --dangerously-skip-permissions\r'
                         : 'claude\r';
                     ptyProcess.write(claudeCmd);
-                }, 50);
+                }, 100);
             }
 
-            // Add to buffer (split by newlines, keep last N lines)
+            // Add to raw buffer for terminal restoration
+            session.rawBuffer += data;
+            if (session.rawBuffer.length > session.maxRawBuffer) {
+                session.rawBuffer = session.rawBuffer.slice(-session.maxRawBuffer);
+            }
+
+            // Add to line buffer for preview cards
             const lines = data.split('\n');
             session.outputBuffer.push(...lines);
             if (session.outputBuffer.length > session.maxBufferLines) {
@@ -159,7 +169,7 @@ class SessionManager {
             dangerousMode: session.dangerousMode,
             createdAt: session.createdAt,
             lastActivity: session.lastActivity,
-            recentOutput: session.outputBuffer.slice(-50).join('\n')
+            recentOutput: session.rawBuffer  // Raw output preserves escape sequences
         };
     }
 
